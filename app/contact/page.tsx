@@ -1,27 +1,85 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
+
+const initialFormData = {
+  name: '',
+  email: '',
+  company: '',
+  service: '',
+  message: '',
+};
+
+type FormState = typeof initialFormData;
+
+type SubmissionState =
+  | { type: 'idle'; message: '' }
+  | { type: 'success' | 'error'; message: string };
 
 export default function Contact() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    company: '',
-    service: '',
-    message: ''
+  const [formData, setFormData] = useState<FormState>(initialFormData);
+  const [submissionState, setSubmissionState] = useState<SubmissionState>({
+    type: 'idle',
+    message: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
+
+    if (submissionState.type !== 'idle') {
+      setSubmissionState({ type: 'idle', message: '' });
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Form submitted:', formData);
+
+    setIsSubmitting(true);
+    setSubmissionState({ type: 'idle', message: '' });
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: string; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ?? 'We could not send your message right now. Please try again.'
+        );
+      }
+
+      setSubmissionState({
+        type: 'success',
+        message:
+          payload?.message ??
+          'Thanks for reaching out. Your message is on its way to our team.',
+      });
+      setFormData(initialFormData);
+    } catch (error) {
+      setSubmissionState({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'We could not send your message right now. Please try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -43,6 +101,18 @@ export default function Contact() {
             <div>
               <h2 className="text-3xl font-bold text-brand-dark mb-8">Get In Touch</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {submissionState.type !== 'idle' ? (
+                  <div
+                    aria-live="polite"
+                    className={`rounded-lg border px-4 py-3 text-sm ${
+                      submissionState.type === 'success'
+                        ? 'border-green-200 bg-green-50 text-green-800'
+                        : 'border-red-200 bg-red-50 text-red-800'
+                    }`}
+                  >
+                    {submissionState.message}
+                  </div>
+                ) : null}
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                     Name *
@@ -54,6 +124,8 @@ export default function Contact() {
                     required
                     value={formData.name}
                     onChange={handleChange}
+                    autoComplete="name"
+                    disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                   />
                 </div>
@@ -68,6 +140,8 @@ export default function Contact() {
                     required
                     value={formData.email}
                     onChange={handleChange}
+                    autoComplete="email"
+                    disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                   />
                 </div>
@@ -81,6 +155,8 @@ export default function Contact() {
                     name="company"
                     value={formData.company}
                     onChange={handleChange}
+                    autoComplete="organization"
+                    disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                   />
                 </div>
@@ -93,6 +169,7 @@ export default function Contact() {
                     name="service"
                     value={formData.service}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                   >
                     <option value="">Select a service</option>
@@ -118,15 +195,17 @@ export default function Contact() {
                     rows={6}
                     value={formData.message}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                     placeholder="Tell us about your project..."
                   />
                 </div>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="w-full bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors font-semibold"
                 >
-                  Send Message
+                  {isSubmitting ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
             </div>
