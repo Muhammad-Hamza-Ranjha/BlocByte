@@ -212,7 +212,7 @@ async function deliverSubmission(submission: ContactSubmission) {
 
   if (isHostedProductionRuntime()) {
     throw new ContactFormConfigurationError(
-      'This contact form is not configured for the live site yet. Add CONTACT_WEBHOOK_URL in Vercel, or configure RESEND_API_KEY and CONTACT_FROM_EMAIL, then redeploy.'
+      'Contact form delivery is not configured for the live site yet.'
     );
   }
 
@@ -247,7 +247,10 @@ export async function POST(request: Request) {
     return Response.json(result, { status: 200 });
   } catch (error) {
     if (error instanceof ContactFormConfigurationError) {
-      return Response.json({ error: error.message }, { status: 503 });
+      return Response.json(
+        { error: error.message, code: 'CONTACT_NOT_CONFIGURED' },
+        { status: 503 }
+      );
     }
 
     console.error('Contact form delivery failed:', error);

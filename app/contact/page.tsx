@@ -9,12 +9,36 @@ const initialFormData = {
   service: '',
   message: '',
 };
+const fallbackContactEmail = 'ranjhah03@gmail.com';
 
 type FormState = typeof initialFormData;
 
 type SubmissionState =
   | { type: 'idle'; message: '' }
   | { type: 'success' | 'error'; message: string };
+
+type ContactApiResponse = {
+  message?: string;
+  error?: string;
+  code?: string;
+};
+
+function buildMailtoLink(formData: FormState) {
+  const subject = formData.service
+    ? `Website inquiry: ${formData.service}`
+    : 'Website inquiry';
+  const body = [
+    `Name: ${formData.name}`,
+    `Email: ${formData.email}`,
+    `Company: ${formData.company || 'Not provided'}`,
+    `Service: ${formData.service || 'Not selected'}`,
+    '',
+    'Message:',
+    formData.message,
+  ].join('\n');
+
+  return `mailto:${fallbackContactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 
 export default function Contact() {
   const [formData, setFormData] = useState<FormState>(initialFormData);
@@ -23,6 +47,7 @@ export default function Contact() {
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fallbackMailtoHref, setFallbackMailtoHref] = useState('');
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -34,6 +59,10 @@ export default function Contact() {
 
     if (submissionState.type !== 'idle') {
       setSubmissionState({ type: 'idle', message: '' });
+    }
+
+    if (fallbackMailtoHref) {
+      setFallbackMailtoHref('');
     }
   };
 
@@ -52,14 +81,17 @@ export default function Contact() {
         body: JSON.stringify(formData),
       });
 
-      const payload = (await response.json().catch(() => null)) as
-        | { message?: string; error?: string }
-        | null;
+      const payload = (await response.json().catch(() => null)) as ContactApiResponse | null;
 
       if (!response.ok) {
-        throw new Error(
-          payload?.error ?? 'We could not send your message right now. Please try again.'
-        );
+        if (response.status === 503 || payload?.code === 'CONTACT_NOT_CONFIGURED') {
+          setFallbackMailtoHref(buildMailtoLink(formData));
+          throw new Error(
+            'The website form is temporarily unavailable. You can still send this message directly by email using the button below.'
+          );
+        }
+
+        throw new Error(payload?.error ?? 'We could not send your message right now. Please try again.');
       }
 
       setSubmissionState({
@@ -112,6 +144,14 @@ export default function Contact() {
                   >
                     {submissionState.message}
                   </div>
+                ) : null}
+                {fallbackMailtoHref ? (
+                  <a
+                    href={fallbackMailtoHref}
+                    className="inline-flex items-center justify-center rounded-lg border border-brand-blue px-4 py-3 text-sm font-semibold text-brand-blue transition-colors hover:bg-brand-blue hover:text-white"
+                  >
+                    Send via Email App
+                  </a>
                 ) : null}
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
