@@ -198,21 +198,21 @@ async function storeLocally(submission: ContactSubmission) {
 }
 
 async function deliverSubmission(submission: ContactSubmission) {
-  if (await sendWithResend(submission)) {
-    return {
-      message: 'Thanks for reaching out. Your message has been emailed to our team.',
-    };
-  }
-
   if (await sendToWebhook(submission)) {
     return {
       message: 'Thanks for reaching out. Your message has been forwarded to our team.',
     };
   }
 
+  if (await sendWithResend(submission)) {
+    return {
+      message: 'Thanks for reaching out. Your message has been emailed to our team.',
+    };
+  }
+
   if (isHostedProductionRuntime()) {
     throw new ContactFormConfigurationError(
-      `This contact form is not configured for the live site yet. Add RESEND_API_KEY and CONTACT_FROM_EMAIL in Vercel to send messages to ${defaultContactToEmail}, or set CONTACT_WEBHOOK_URL, then redeploy.`
+      'This contact form is not configured for the live site yet. Add CONTACT_WEBHOOK_URL in Vercel, or configure RESEND_API_KEY and CONTACT_FROM_EMAIL, then redeploy.'
     );
   }
 

@@ -24,9 +24,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 The `/contact` page posts to `app/api/contact/route.ts`.
 
-- Configure `.env.local` from `.env.example` to email submissions with Resend or forward them to a webhook.
+- Configure `.env.local` from `.env.example` to forward submissions to a webhook or email them with Resend.
 - The default recipient is `ranjhah03@gmail.com` unless `CONTACT_TO_EMAIL` is overridden.
 - On Vercel, add the same variables in Project Settings > Environment Variables, then redeploy.
+- If `CONTACT_WEBHOOK_URL` is set, the form will use that integration before trying Resend.
 - If no delivery env vars are set, submissions are only saved locally to `data/contact-submissions.ndjson` during local development/self-hosted use.
 
 ## Learn More
