@@ -4,6 +4,7 @@ import path from 'node:path';
 export const runtime = 'nodejs';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const defaultContactToEmail = 'ranjhah03@gmail.com';
 const validServices = new Set([
   'web-app-development',
   'mobile-development',
@@ -36,12 +37,12 @@ function normalizeString(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function getContactToEmail() {
+  return process.env.CONTACT_TO_EMAIL?.trim() || defaultContactToEmail;
+}
+
 function hasResendConfig() {
-  return Boolean(
-    process.env.RESEND_API_KEY &&
-      process.env.CONTACT_TO_EMAIL &&
-      process.env.CONTACT_FROM_EMAIL
-  );
+  return Boolean(process.env.RESEND_API_KEY && process.env.CONTACT_FROM_EMAIL);
 }
 
 function hasWebhookConfig() {
@@ -133,7 +134,7 @@ async function sendWithResend(submission: ContactSubmission) {
   }
 
   const apiKey = process.env.RESEND_API_KEY!;
-  const toEmail = process.env.CONTACT_TO_EMAIL!;
+  const toEmail = getContactToEmail();
   const fromEmail = process.env.CONTACT_FROM_EMAIL!;
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -211,7 +212,7 @@ async function deliverSubmission(submission: ContactSubmission) {
 
   if (isHostedProductionRuntime()) {
     throw new ContactFormConfigurationError(
-      'This contact form is not configured for the live site yet. Add RESEND_API_KEY, CONTACT_TO_EMAIL, and CONTACT_FROM_EMAIL or set CONTACT_WEBHOOK_URL in Vercel, then redeploy.'
+      `This contact form is not configured for the live site yet. Add RESEND_API_KEY and CONTACT_FROM_EMAIL in Vercel to send messages to ${defaultContactToEmail}, or set CONTACT_WEBHOOK_URL, then redeploy.`
     );
   }
 
