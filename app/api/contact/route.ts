@@ -25,8 +25,31 @@ type ContactSubmission = {
   submittedAt: string;
 };
 
+class ContactFormConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ContactFormConfigurationError';
+  }
+}
+
 function normalizeString(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function hasResendConfig() {
+  return Boolean(
+    process.env.RESEND_API_KEY &&
+      process.env.CONTACT_TO_EMAIL &&
+      process.env.CONTACT_FROM_EMAIL
+  );
+}
+
+function hasWebhookConfig() {
+  return Boolean(process.env.CONTACT_WEBHOOK_URL);
+}
+
+function isHostedProductionRuntime() {
+  return process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 }
 
 function validatePayload(payload: unknown) {
@@ -105,13 +128,13 @@ function buildSubmissionText(submission: ContactSubmission) {
 }
 
 async function sendWithResend(submission: ContactSubmission) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const toEmail = process.env.CONTACT_TO_EMAIL;
-  const fromEmail = process.env.CONTACT_FROM_EMAIL;
-
-  if (!apiKey || !toEmail || !fromEmail) {
+  if (!hasResendConfig()) {
     return false;
   }
+
+  const apiKey = process.env.RESEND_API_KEY!;
+  const toEmail = process.env.CONTACT_TO_EMAIL!;
+  const fromEmail = process.env.CONTACT_FROM_EMAIL!;
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -137,12 +160,11 @@ async function sendWithResend(submission: ContactSubmission) {
 }
 
 async function sendToWebhook(submission: ContactSubmission) {
-  const webhookUrl = process.env.CONTACT_WEBHOOK_URL;
-
-  if (!webhookUrl) {
+  if (!hasWebhookConfig()) {
     return false;
   }
 
+  const webhookUrl = process.env.CONTACT_WEBHOOK_URL!;
   const bearerToken = process.env.CONTACT_WEBHOOK_BEARER_TOKEN;
   const headers = new Headers({
     'Content-Type': 'application/json',
@@ -187,6 +209,12 @@ async function deliverSubmission(submission: ContactSubmission) {
     };
   }
 
+  if (isHostedProductionRuntime()) {
+    throw new ContactFormConfigurationError(
+      'This contact form is not configured for the live site yet. Add RESEND_API_KEY, CONTACT_TO_EMAIL, and CONTACT_FROM_EMAIL or set CONTACT_WEBHOOK_URL in Vercel, then redeploy.'
+    );
+  }
+
   await storeLocally(submission);
 
   return {
@@ -217,6 +245,10 @@ export async function POST(request: Request) {
     const result = await deliverSubmission(validation.data);
     return Response.json(result, { status: 200 });
   } catch (error) {
+    if (error instanceof ContactFormConfigurationError) {
+      return Response.json({ error: error.message }, { status: 503 });
+    }
+
     console.error('Contact form delivery failed:', error);
 
     return Response.json(
