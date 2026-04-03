@@ -364,23 +364,33 @@ export default function Contact() {
                   <h3 className="text-lg font-semibold text-brand-dark mb-2">Global Offices</h3>
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div className="text-center">
-                      <div className="text-2xl mb-2">ðŸ‡ºðŸ‡¸</div>
+                      <div className="mx-auto mb-2 inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue/10 text-lg font-semibold text-brand-blue">
+                        US
+                      </div>
                       <p className="text-sm text-gray-600">USA</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl mb-2">ðŸ‡¬ðŸ‡§</div>
+                      <div className="mx-auto mb-2 inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue/10 text-lg font-semibold text-brand-blue">
+                        GB
+                      </div>
                       <p className="text-sm text-gray-600">UK</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl mb-2">ðŸ‡¨ðŸ‡¦</div>
+                      <div className="mx-auto mb-2 inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue/10 text-lg font-semibold text-brand-blue">
+                        CA
+                      </div>
                       <p className="text-sm text-gray-600">Canada</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl mb-2">ðŸ‡¦ðŸ‡º</div>
+                      <div className="mx-auto mb-2 inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue/10 text-lg font-semibold text-brand-blue">
+                        AU
+                      </div>
                       <p className="text-sm text-gray-600">Australia</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl mb-2">ðŸ‡¦ðŸ‡ª</div>
+                      <div className="mx-auto mb-2 inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue/10 text-lg font-semibold text-brand-blue">
+                        AE
+                      </div>
                       <p className="text-sm text-gray-600">Middle East</p>
                     </div>
                   </div>
