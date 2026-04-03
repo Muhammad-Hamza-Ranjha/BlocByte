@@ -5,71 +5,97 @@ import { useState, type ChangeEvent, type FormEvent } from 'react';
 const initialFormData = {
   name: '',
   email: '',
-  company: '',
-  service: '',
+  subject: '',
   message: '',
 };
-const fallbackContactEmail = 'ranjhah03@gmail.com';
 
 type FormState = typeof initialFormData;
+type FieldErrors = Partial<Record<keyof FormState, string>>;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type SubmissionState =
   | { type: 'idle'; message: '' }
   | { type: 'success' | 'error'; message: string };
 
 type ContactApiResponse = {
+  success?: boolean;
   message?: string;
   error?: string;
-  code?: string;
 };
 
-function buildMailtoLink(formData: FormState) {
-  const subject = formData.service
-    ? `Website inquiry: ${formData.service}`
-    : 'Website inquiry';
-  const body = [
-    `Name: ${formData.name}`,
-    `Email: ${formData.email}`,
-    `Company: ${formData.company || 'Not provided'}`,
-    `Service: ${formData.service || 'Not selected'}`,
-    '',
-    'Message:',
-    formData.message,
-  ].join('\n');
+function validateFormData(formData: FormState) {
+  const errors: FieldErrors = {};
 
-  return `mailto:${fallbackContactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (!formData.name.trim()) {
+    errors.name = 'Name is required.';
+  }
+
+  if (!formData.email.trim()) {
+    errors.email = 'Email is required.';
+  } else if (!emailPattern.test(formData.email.trim())) {
+    errors.email = 'Enter a valid email address.';
+  }
+
+  if (!formData.message.trim()) {
+    errors.message = 'Message is required.';
+  }
+
+  return errors;
 }
 
 export default function Contact() {
   const [formData, setFormData] = useState<FormState>(initialFormData);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submissionState, setSubmissionState] = useState<SubmissionState>({
     type: 'idle',
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [fallbackMailtoHref, setFallbackMailtoHref] = useState('');
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+    const { name, value } = e.target;
+
+    setFormData((currentFormData) => ({
+      ...currentFormData,
+      [name]: value,
+    }));
+
+    setFieldErrors((currentErrors) => {
+      if (!currentErrors[name as keyof FormState]) {
+        return currentErrors;
+      }
+
+      const nextErrors = { ...currentErrors };
+      delete nextErrors[name as keyof FormState];
+      return nextErrors;
     });
 
     if (submissionState.type !== 'idle') {
       setSubmissionState({ type: 'idle', message: '' });
-    }
-
-    if (fallbackMailtoHref) {
-      setFallbackMailtoHref('');
     }
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    const trimmedFormData = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      subject: formData.subject.trim(),
+      message: formData.message.trim(),
+    };
+    const validationErrors = validateFormData(trimmedFormData);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setSubmissionState({ type: 'idle', message: '' });
+      return;
+    }
+
     setIsSubmitting(true);
+    setFieldErrors({});
     setSubmissionState({ type: 'idle', message: '' });
 
     try {
@@ -78,36 +104,24 @@ export default function Contact() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(trimmedFormData),
       });
 
       const payload = (await response.json().catch(() => null)) as ContactApiResponse | null;
 
       if (!response.ok) {
-        if (response.status === 503 || payload?.code === 'CONTACT_NOT_CONFIGURED') {
-          setFallbackMailtoHref(buildMailtoLink(formData));
-          throw new Error(
-            'The website form is temporarily unavailable. You can still send this message directly by email using the button below.'
-          );
-        }
-
-        throw new Error(payload?.error ?? 'We could not send your message right now. Please try again.');
+        throw new Error(payload?.error ?? 'Something went wrong. Please try again.');
       }
 
       setSubmissionState({
         type: 'success',
-        message:
-          payload?.message ??
-          'Thanks for reaching out. Your message is on its way to our team.',
+        message: 'Your message has been sent!',
       });
       setFormData(initialFormData);
     } catch (error) {
       setSubmissionState({
         type: 'error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'We could not send your message right now. Please try again.',
+        message: error instanceof Error ? 'Something went wrong. Please try again.' : 'Something went wrong. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -132,7 +146,7 @@ export default function Contact() {
             {/* Contact Form */}
             <div>
               <h2 className="text-3xl font-bold text-brand-dark mb-8">Get In Touch</h2>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6" noValidate>
                 {submissionState.type !== 'idle' ? (
                   <div
                     aria-live="polite"
@@ -144,14 +158,6 @@ export default function Contact() {
                   >
                     {submissionState.message}
                   </div>
-                ) : null}
-                {fallbackMailtoHref ? (
-                  <a
-                    href={fallbackMailtoHref}
-                    className="inline-flex items-center justify-center rounded-lg border border-brand-blue px-4 py-3 text-sm font-semibold text-brand-blue transition-colors hover:bg-brand-blue hover:text-white"
-                  >
-                    Send via Email App
-                  </a>
                 ) : null}
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -168,6 +174,9 @@ export default function Contact() {
                     disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                   />
+                  {fieldErrors.name ? (
+                    <p className="mt-2 text-sm text-red-600">{fieldErrors.name}</p>
+                  ) : null}
                 </div>
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -184,45 +193,24 @@ export default function Contact() {
                     disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                   />
+                  {fieldErrors.email ? (
+                    <p className="mt-2 text-sm text-red-600">{fieldErrors.email}</p>
+                  ) : null}
                 </div>
                 <div>
-                  <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                    Company
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+                    Subject
                   </label>
                   <input
                     type="text"
-                    id="company"
-                    name="company"
-                    value={formData.company}
+                    id="subject"
+                    name="subject"
+                    value={formData.subject}
                     onChange={handleChange}
-                    autoComplete="organization"
                     disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    placeholder="How can we help?"
                   />
-                </div>
-                <div>
-                  <label htmlFor="service" className="block text-sm font-medium text-gray-700 mb-2">
-                    Service Interested In
-                  </label>
-                  <select
-                    id="service"
-                    name="service"
-                    value={formData.service}
-                    onChange={handleChange}
-                    disabled={isSubmitting}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
-                  >
-                    <option value="">Select a service</option>
-                    <option value="web-app-development">Web & App Development</option>
-                    <option value="mobile-development">Mobile Development</option>
-                    <option value="ai-ml">AI & ML Services</option>
-                    <option value="blockchain-web3">Blockchain & Web3</option>
-                    <option value="gis">GIS Services</option>
-                    <option value="staff-augmentation">Staff Augmentation</option>
-                    <option value="amazon-ecommerce">Amazon & eCommerce</option>
-                    <option value="trading-platform">Trading Platform</option>
-                    <option value="other">Other</option>
-                  </select>
                 </div>
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
@@ -239,6 +227,9 @@ export default function Contact() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                     placeholder="Tell us about your project..."
                   />
+                  {fieldErrors.message ? (
+                    <p className="mt-2 text-sm text-red-600">{fieldErrors.message}</p>
+                  ) : null}
                 </div>
                 <button
                   type="submit"
@@ -256,7 +247,7 @@ export default function Contact() {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-brand-dark mb-2">Email</h3>
-                  <p className="text-gray-600">hello@blocbytes.com</p>
+                  <p className="text-gray-600">ranjhah03@gmail.com</p>
                   <p className="text-sm text-gray-500 mt-1">Response within 24 hours guaranteed</p>
                 </div>
                 <div>
