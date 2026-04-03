@@ -1,17 +1,19 @@
 'use client';
 
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState, type ChangeEvent, type FocusEvent, type FormEvent } from 'react';
 
 const initialFormData = {
   name: '',
   email: '',
   subject: '',
   message: '',
+  honeypot: '',
 };
 
 type FormState = typeof initialFormData;
 type FieldErrors = Partial<Record<keyof FormState, string>>;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const namePattern = /^[\p{L}\s]+$/u;
 
 type SubmissionState =
   | { type: 'idle'; message: '' }
@@ -23,21 +25,45 @@ type ContactApiResponse = {
   error?: string;
 };
 
+function sanitizeFormData(formData: FormState) {
+  return {
+    name: formData.name.trim().replace(/\s+/g, ' '),
+    email: formData.email.trim(),
+    subject: formData.subject.trim(),
+    message: formData.message.trim(),
+    honeypot: formData.honeypot.trim(),
+  };
+}
+
 function validateFormData(formData: FormState) {
   const errors: FieldErrors = {};
+  const sanitizedFormData = sanitizeFormData(formData);
 
-  if (!formData.name.trim()) {
+  if (!sanitizedFormData.name) {
     errors.name = 'Name is required.';
+  } else if (sanitizedFormData.name.length < 2 || sanitizedFormData.name.length > 100) {
+    errors.name = 'Name must be between 2 and 100 characters.';
+  } else if (!namePattern.test(sanitizedFormData.name)) {
+    errors.name = 'Name may only contain letters and spaces.';
   }
 
-  if (!formData.email.trim()) {
+  if (!sanitizedFormData.email) {
     errors.email = 'Email is required.';
-  } else if (!emailPattern.test(formData.email.trim())) {
+  } else if (!emailPattern.test(sanitizedFormData.email)) {
     errors.email = 'Enter a valid email address.';
   }
 
-  if (!formData.message.trim()) {
+  if (sanitizedFormData.subject.length > 150) {
+    errors.subject = 'Subject must be 150 characters or fewer.';
+  }
+
+  if (!sanitizedFormData.message) {
     errors.message = 'Message is required.';
+  } else if (
+    sanitizedFormData.message.length < 10 ||
+    sanitizedFormData.message.length > 2000
+  ) {
+    errors.message = 'Message must be between 10 and 2000 characters.';
   }
 
   return errors;
@@ -45,12 +71,17 @@ function validateFormData(formData: FormState) {
 
 export default function Contact() {
   const [formData, setFormData] = useState<FormState>(initialFormData);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [touchedFields, setTouchedFields] = useState<
+    Partial<Record<keyof FormState, boolean>>
+  >({});
+  const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
   const [submissionState, setSubmissionState] = useState<SubmissionState>({
     type: 'idle',
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const fieldErrors = validateFormData(formData);
+  const isFormValid = Object.keys(fieldErrors).length === 0;
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -62,40 +93,35 @@ export default function Contact() {
       [name]: value,
     }));
 
-    setFieldErrors((currentErrors) => {
-      if (!currentErrors[name as keyof FormState]) {
-        return currentErrors;
-      }
-
-      const nextErrors = { ...currentErrors };
-      delete nextErrors[name as keyof FormState];
-      return nextErrors;
-    });
-
     if (submissionState.type !== 'idle') {
       setSubmissionState({ type: 'idle', message: '' });
     }
   };
 
+  const handleBlur = (
+    e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name } = e.target;
+
+    setTouchedFields((currentTouchedFields) => ({
+      ...currentTouchedFields,
+      [name]: true,
+    }));
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const trimmedFormData = {
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      subject: formData.subject.trim(),
-      message: formData.message.trim(),
-    };
+    const trimmedFormData = sanitizeFormData(formData);
     const validationErrors = validateFormData(trimmedFormData);
+    setHasTriedSubmit(true);
 
     if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors(validationErrors);
       setSubmissionState({ type: 'idle', message: '' });
       return;
     }
 
     setIsSubmitting(true);
-    setFieldErrors({});
     setSubmissionState({ type: 'idle', message: '' });
 
     try {
@@ -118,10 +144,15 @@ export default function Contact() {
         message: 'Your message has been sent!',
       });
       setFormData(initialFormData);
+      setTouchedFields({});
+      setHasTriedSubmit(false);
     } catch (error) {
       setSubmissionState({
         type: 'error',
-        message: error instanceof Error ? 'Something went wrong. Please try again.' : 'Something went wrong. Please try again.',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Something went wrong. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
@@ -160,6 +191,25 @@ export default function Contact() {
                   </div>
                 ) : null}
                 <div>
+                  <label
+                    htmlFor="honeypot"
+                    className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden"
+                  >
+                    Leave this field empty
+                  </label>
+                  <input
+                    type="text"
+                    id="honeypot"
+                    name="honeypot"
+                    value={formData.honeypot}
+                    onChange={handleChange}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden"
+                    aria-hidden="true"
+                  />
+                </div>
+                <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                     Name *
                   </label>
@@ -170,11 +220,12 @@ export default function Contact() {
                     required
                     value={formData.name}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     autoComplete="name"
                     disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                   />
-                  {fieldErrors.name ? (
+                  {fieldErrors.name && (touchedFields.name || hasTriedSubmit) ? (
                     <p className="mt-2 text-sm text-red-600">{fieldErrors.name}</p>
                   ) : null}
                 </div>
@@ -189,11 +240,12 @@ export default function Contact() {
                     required
                     value={formData.email}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     autoComplete="email"
                     disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                   />
-                  {fieldErrors.email ? (
+                  {fieldErrors.email && (touchedFields.email || hasTriedSubmit) ? (
                     <p className="mt-2 text-sm text-red-600">{fieldErrors.email}</p>
                   ) : null}
                 </div>
@@ -207,10 +259,14 @@ export default function Contact() {
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                     placeholder="How can we help?"
                   />
+                  {fieldErrors.subject && (touchedFields.subject || hasTriedSubmit) ? (
+                    <p className="mt-2 text-sm text-red-600">{fieldErrors.subject}</p>
+                  ) : null}
                 </div>
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
@@ -223,18 +279,19 @@ export default function Contact() {
                     rows={6}
                     value={formData.message}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     disabled={isSubmitting}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent"
                     placeholder="Tell us about your project..."
                   />
-                  {fieldErrors.message ? (
+                  {fieldErrors.message && (touchedFields.message || hasTriedSubmit) ? (
                     <p className="mt-2 text-sm text-red-600">{fieldErrors.message}</p>
                   ) : null}
                 </div>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors font-semibold"
+                  disabled={isSubmitting || !isFormValid}
+                  className="w-full bg-brand-blue text-white px-8 py-4 rounded-lg font-semibold transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? 'Sending...' : 'Send Message'}
                 </button>
