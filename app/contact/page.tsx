@@ -1,5 +1,9 @@
 'use client';
 
+import {
+  GoogleReCaptchaProvider,
+  useGoogleReCaptcha,
+} from 'react-google-recaptcha-v3';
 import { useState, type ChangeEvent, type FocusEvent, type FormEvent } from 'react';
 
 const initialFormData = {
@@ -69,7 +73,11 @@ function validateFormData(formData: FormState) {
   return errors;
 }
 
-export default function Contact() {
+type ContactFormContentProps = {
+  executeRecaptcha?: (action?: string) => Promise<string>;
+};
+
+function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
   const [formData, setFormData] = useState<FormState>(initialFormData);
   const [touchedFields, setTouchedFields] = useState<
     Partial<Record<keyof FormState, boolean>>
@@ -125,12 +133,25 @@ export default function Contact() {
     setSubmissionState({ type: 'idle', message: '' });
 
     try {
+      if (!executeRecaptcha) {
+        throw new Error('CAPTCHA verification failed. Please try again.');
+      }
+
+      const recaptchaToken = await executeRecaptcha('contact_form');
+
+      if (!recaptchaToken) {
+        throw new Error('CAPTCHA verification failed. Please try again.');
+      }
+
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(trimmedFormData),
+        body: JSON.stringify({
+          ...trimmedFormData,
+          recaptchaToken,
+        }),
       });
 
       const payload = (await response.json().catch(() => null)) as ContactApiResponse | null;
@@ -342,5 +363,25 @@ export default function Contact() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ContactFormWithRecaptcha() {
+  const { executeRecaptcha } = useGoogleReCaptcha();
+
+  return <ContactFormContent executeRecaptcha={executeRecaptcha} />;
+}
+
+export default function Contact() {
+  const reCaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+
+  if (!reCaptchaSiteKey) {
+    return <ContactFormContent />;
+  }
+
+  return (
+    <GoogleReCaptchaProvider reCaptchaKey={reCaptchaSiteKey}>
+      <ContactFormWithRecaptcha />
+    </GoogleReCaptchaProvider>
   );
 }

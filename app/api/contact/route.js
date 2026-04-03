@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 const MAX_REQUEST_BYTES = 10 * 1024;
 const MAX_REQUESTS_PER_WINDOW = 5;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const MIN_RECAPTCHA_SCORE = 0.5;
 const namePattern = /^[\p{L}\s]+$/u;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -139,6 +140,25 @@ async function rateLimitByIp(identifier) {
   return runMemoryRateLimit(identifier);
 }
 
+async function verifyRecaptchaToken(recaptchaToken) {
+  const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      secret: process.env.RECAPTCHA_SECRET_KEY || '',
+      response: recaptchaToken,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('reCAPTCHA verification request failed.');
+  }
+
+  return response.json();
+}
+
 function validatePayload(payload) {
   if (!payload || typeof payload !== 'object') {
     return { error: 'Invalid request body.' };
@@ -150,6 +170,7 @@ function validatePayload(payload) {
   const subject = normalizeSingleLineValue(payload.subject);
   const message = normalizeMultilineValue(payload.message);
   const honeypot = normalizeSingleLineValue(payload.honeypot);
+  const recaptchaToken = normalizeSingleLineValue(payload.recaptchaToken);
 
   if (!name) {
     return { error: 'Name is required.' };
@@ -183,6 +204,10 @@ function validatePayload(payload) {
     return { error: 'Message must be between 10 and 2000 characters.' };
   }
 
+  if (!recaptchaToken) {
+    return { error: 'CAPTCHA verification failed. Please try again.' };
+  }
+
   return {
     data: {
       name,
@@ -190,6 +215,7 @@ function validatePayload(payload) {
       subject,
       message,
       honeypot,
+      recaptchaToken,
     },
   };
 }
@@ -267,6 +293,36 @@ export async function POST(request) {
           )}`,
         },
       }
+    );
+  }
+
+  if (!process.env.RECAPTCHA_SECRET_KEY) {
+    return Response.json(
+      { success: false, error: 'CAPTCHA service is not configured.' },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const recaptchaResult = await verifyRecaptchaToken(validation.data.recaptchaToken);
+
+    if (
+      !recaptchaResult.success ||
+      typeof recaptchaResult.score !== 'number' ||
+      recaptchaResult.score < MIN_RECAPTCHA_SCORE ||
+      recaptchaResult.action !== 'contact_form'
+    ) {
+      return Response.json(
+        { success: false, error: 'CAPTCHA verification failed. Please try again.' },
+        { status: 400 }
+      );
+    }
+  } catch (error) {
+    console.error('reCAPTCHA verification error:', error);
+
+    return Response.json(
+      { success: false, error: 'CAPTCHA verification failed. Please try again.' },
+      { status: 400 }
     );
   }
 
