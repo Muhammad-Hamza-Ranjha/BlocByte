@@ -7,7 +7,6 @@ export const runtime = 'nodejs';
 const MAX_REQUEST_BYTES = 10 * 1024;
 const MAX_REQUESTS_PER_WINDOW = 5;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
-const MIN_RECAPTCHA_SCORE = 0.5;
 const namePattern = /^[\p{L}\s]+$/u;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -43,6 +42,7 @@ function escapeHtml(value) {
 
 function getClientIp(request) {
   const forwardedFor = request.headers.get('x-forwarded-for');
+
   if (forwardedFor) {
     return forwardedFor.split(',')[0]?.trim() || 'unknown';
   }
@@ -140,7 +140,7 @@ async function rateLimitByIp(identifier) {
   return runMemoryRateLimit(identifier);
 }
 
-async function verifyRecaptchaToken(recaptchaToken) {
+async function verifyRecaptchaToken(recaptchaToken, remoteIp) {
   const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
     method: 'POST',
     headers: {
@@ -149,6 +149,7 @@ async function verifyRecaptchaToken(recaptchaToken) {
     body: new URLSearchParams({
       secret: process.env.RECAPTCHA_SECRET_KEY || '',
       response: recaptchaToken,
+      ...(remoteIp ? { remoteip: remoteIp } : {}),
     }),
   });
 
@@ -304,14 +305,12 @@ export async function POST(request) {
   }
 
   try {
-    const recaptchaResult = await verifyRecaptchaToken(validation.data.recaptchaToken);
+    const recaptchaResult = await verifyRecaptchaToken(
+      validation.data.recaptchaToken,
+      ipAddress
+    );
 
-    if (
-      !recaptchaResult.success ||
-      typeof recaptchaResult.score !== 'number' ||
-      recaptchaResult.score < MIN_RECAPTCHA_SCORE ||
-      recaptchaResult.action !== 'contact_form'
-    ) {
+    if (!recaptchaResult.success) {
       return Response.json(
         { success: false, error: 'CAPTCHA verification failed. Please try again.' },
         { status: 400 }

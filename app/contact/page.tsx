@@ -1,10 +1,13 @@
 'use client';
 
+import ReCAPTCHA from 'react-google-recaptcha';
 import {
-  GoogleReCaptchaProvider,
-  useGoogleReCaptcha,
-} from 'react-google-recaptcha-v3';
-import { useState, type ChangeEvent, type FocusEvent, type FormEvent } from 'react';
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FocusEvent,
+  type FormEvent,
+} from 'react';
 
 const initialFormData = {
   name: '',
@@ -16,6 +19,7 @@ const initialFormData = {
 
 type FormState = typeof initialFormData;
 type FieldErrors = Partial<Record<keyof FormState, string>>;
+
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const namePattern = /^[\p{L}\s]+$/u;
 
@@ -73,11 +77,8 @@ function validateFormData(formData: FormState) {
   return errors;
 }
 
-type ContactFormContentProps = {
-  executeRecaptcha?: (action?: string) => Promise<string>;
-};
-
-function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
+export default function Contact() {
+  const recaptchaRef = useRef<ReCAPTCHA | null>(null);
   const [formData, setFormData] = useState<FormState>(initialFormData);
   const [touchedFields, setTouchedFields] = useState<
     Partial<Record<keyof FormState, boolean>>
@@ -87,9 +88,11 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
     type: 'idle',
     message: '',
   });
+  const [captchaError, setCaptchaError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fieldErrors = validateFormData(formData);
   const isFormValid = Object.keys(fieldErrors).length === 0;
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -131,16 +134,14 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
 
     setIsSubmitting(true);
     setSubmissionState({ type: 'idle', message: '' });
+    setCaptchaError('');
 
     try {
-      if (!executeRecaptcha) {
-        throw new Error('CAPTCHA verification failed. Please try again.');
-      }
-
-      const recaptchaToken = await executeRecaptcha('contact_form');
+      const recaptchaToken = recaptchaRef.current?.getValue();
 
       if (!recaptchaToken) {
-        throw new Error('CAPTCHA verification failed. Please try again.');
+        setCaptchaError('Please complete the CAPTCHA.');
+        throw new Error('Please complete the CAPTCHA.');
       }
 
       const response = await fetch('/api/contact', {
@@ -167,7 +168,18 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
       setFormData(initialFormData);
       setTouchedFields({});
       setHasTriedSubmit(false);
+      setCaptchaError('');
+      recaptchaRef.current?.reset();
     } catch (error) {
+      recaptchaRef.current?.reset();
+
+      if (
+        error instanceof Error &&
+        error.message === 'CAPTCHA verification failed. Please try again.'
+      ) {
+        setCaptchaError(error.message);
+      }
+
       setSubmissionState({
         type: 'error',
         message:
@@ -182,7 +194,6 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
 
   return (
     <div className="min-h-screen">
-      {/* Hero */}
       <section className="bg-gradient-to-br from-brand-dark to-gray-900 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
@@ -191,11 +202,9 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
         </div>
       </section>
 
-      {/* Contact Form and Info */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Contact Form */}
             <div>
               <h2 className="text-3xl font-bold text-brand-dark mb-8">Get In Touch</h2>
               <form onSubmit={handleSubmit} className="space-y-6" noValidate>
@@ -309,6 +318,26 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
                     <p className="mt-2 text-sm text-red-600">{fieldErrors.message}</p>
                   ) : null}
                 </div>
+                <div>
+                  {recaptchaSiteKey ? (
+                    <ReCAPTCHA
+                      ref={recaptchaRef}
+                      sitekey={recaptchaSiteKey}
+                      onChange={() => setCaptchaError('')}
+                      onExpired={() => setCaptchaError('Please complete the CAPTCHA.')}
+                      onErrored={() =>
+                        setCaptchaError('CAPTCHA verification failed. Please try again.')
+                      }
+                    />
+                  ) : (
+                    <p className="text-sm text-red-600">
+                      CAPTCHA is not configured. Please contact the site owner.
+                    </p>
+                  )}
+                  {captchaError ? (
+                    <p className="mt-2 text-sm text-red-600">{captchaError}</p>
+                  ) : null}
+                </div>
                 <button
                   type="submit"
                   disabled={isSubmitting || !isFormValid}
@@ -319,7 +348,6 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
               </form>
             </div>
 
-            {/* Contact Info */}
             <div>
               <h2 className="text-3xl font-bold text-brand-dark mb-8">Contact Information</h2>
               <div className="space-y-6">
@@ -336,23 +364,23 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
                   <h3 className="text-lg font-semibold text-brand-dark mb-2">Global Offices</h3>
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div className="text-center">
-                      <div className="text-2xl mb-2">🇺🇸</div>
+                      <div className="text-2xl mb-2">ðŸ‡ºðŸ‡¸</div>
                       <p className="text-sm text-gray-600">USA</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl mb-2">🇬🇧</div>
+                      <div className="text-2xl mb-2">ðŸ‡¬ðŸ‡§</div>
                       <p className="text-sm text-gray-600">UK</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl mb-2">🇨🇦</div>
+                      <div className="text-2xl mb-2">ðŸ‡¨ðŸ‡¦</div>
                       <p className="text-sm text-gray-600">Canada</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl mb-2">🇦🇺</div>
+                      <div className="text-2xl mb-2">ðŸ‡¦ðŸ‡º</div>
                       <p className="text-sm text-gray-600">Australia</p>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl mb-2">🇦🇪</div>
+                      <div className="text-2xl mb-2">ðŸ‡¦ðŸ‡ª</div>
                       <p className="text-sm text-gray-600">Middle East</p>
                     </div>
                   </div>
@@ -363,25 +391,5 @@ function ContactFormContent({ executeRecaptcha }: ContactFormContentProps) {
         </div>
       </section>
     </div>
-  );
-}
-
-function ContactFormWithRecaptcha() {
-  const { executeRecaptcha } = useGoogleReCaptcha();
-
-  return <ContactFormContent executeRecaptcha={executeRecaptcha} />;
-}
-
-export default function Contact() {
-  const reCaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-
-  if (!reCaptchaSiteKey) {
-    return <ContactFormContent />;
-  }
-
-  return (
-    <GoogleReCaptchaProvider reCaptchaKey={reCaptchaSiteKey}>
-      <ContactFormWithRecaptcha />
-    </GoogleReCaptchaProvider>
   );
 }
