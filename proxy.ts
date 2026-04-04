@@ -21,6 +21,7 @@ const NEXT_INLINE_SCRIPT_HASHES = [
   "'sha256-0Qer7wjCRuuFel5j5IPEnEoTeeAsvQtiPjMqw9n8Vos='",
   "'sha256-gi0rwFWnYB6iJ/vuKWObtTNlqcoMHKVJKgIkwjKJ2GE='",
   "'sha256-xKgNADMDR4gNSLYlkWkGdM6bzvInwFXivnITGwoHkio='",
+  "'sha256-eTedAbYDeLeqwQ0HYPqoLzPozlka1V6lgfq67WxfmoY='",
 ].join(' ');
 
 export function proxy(request: NextRequest) {
