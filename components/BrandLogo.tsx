@@ -1,11 +1,14 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import logoDark from '../public/blocbytes.svg';
+import logoLight from '../public/blocbytes_black_png.png';
 
 type BrandLogoProps = {
   className?: string;
   imageClassName?: string;
   href?: string;
-  priority?: boolean;
+  preload?: boolean;
+  sizes?: string;
   surface?: 'auto' | 'light' | 'dark';
 };
 
@@ -13,7 +16,8 @@ export default function BrandLogo({
   className = '',
   imageClassName = '',
   href = '/',
-  priority = false,
+  preload = false,
+  sizes = '180px',
   surface = 'auto',
 }: BrandLogoProps) {
   const wrapperClassName = ['logo-link inline-flex items-center', className].filter(Boolean).join(' ');
@@ -24,19 +28,26 @@ export default function BrandLogo({
     <Link href={href} className={wrapperClassName} aria-label="BlocBytes home">
       <span className={['logo-stack', surfaceClassName].join(' ')}>
         <Image
-          src="/blocbytes_black_png.png"
+          src={logoLight}
           alt="BlocBytes"
           width={1043}
           height={188}
-          priority={priority}
+          preload={preload}
+          loading={preload ? 'eager' : 'lazy'}
+          sizes={sizes}
+          decoding="async"
           className={`${logoClassName} logo-image-light`}
         />
         <Image
-          src="/blocbytes.svg"
+          src={logoDark}
           alt="BlocBytes"
           width={1041}
           height={187}
-          priority={priority}
+          preload={preload}
+          loading={preload ? 'eager' : 'lazy'}
+          sizes={sizes}
+          decoding="async"
+          unoptimized
           className={`${logoClassName} logo-image-dark`}
         />
       </span>

@@ -17,7 +17,7 @@ export default function Home() {
                 BlocBytes is a premium engineering partner for founders, CTOs, and product teams who refuse to compromise on quality. From first wireframe to production deployment - we own the outcome alongside you.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link href="/contact" className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center">
+                <Link href="/contact" prefetch={false} className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center">
                   Start Your Project <ArrowRight className="ml-2 w-5 h-5" />
                 </Link>
                 <Link href="#services" className="border border-white text-white px-8 py-4 rounded-lg hover:bg-white hover:text-brand-dark transition-colors">
@@ -219,7 +219,7 @@ export default function Home() {
             </div>
           </div>
           <div className="space-y-4">
-            <Link href="/contact" className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center text-lg">
+            <Link href="/contact" prefetch={false} className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center text-lg">
               Book Your Free Consultation <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
             <p className="text-gray-400">Or email us directly: hello@blocbytes.com</p>

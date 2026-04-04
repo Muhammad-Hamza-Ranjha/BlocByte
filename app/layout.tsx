@@ -19,11 +19,13 @@ const themeScript = `
 const syne = Syne({
   variable: "--font-syne",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -43,7 +45,11 @@ export default function RootLayout({
       className={`${syne.variable} ${dmSans.variable} h-full antialiased`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          suppressHydrationWarning
+          id="blocbytes-theme-script"
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <Navigation />

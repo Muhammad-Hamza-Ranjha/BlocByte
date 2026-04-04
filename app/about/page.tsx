@@ -16,6 +16,7 @@ export default function AboutPage() {
               </p>
               <Link
                 href="/contact"
+                prefetch={false}
                 className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center"
               >
                 Book a Consultation <ArrowRight className="ml-2 w-5 h-5" />
@@ -127,6 +128,7 @@ export default function AboutPage() {
           </p>
           <Link
             href="/contact"
+            prefetch={false}
             className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center text-lg"
           >
             Start the Conversation <ArrowRight className="ml-2 w-5 h-5" />

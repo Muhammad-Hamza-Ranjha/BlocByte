@@ -13,10 +13,10 @@ export default function TradingPlatform() {
             </p>
             <p className="text-lg text-gray-400 mb-12">Cut sourcing time by 30%. Eliminate procurement bottlenecks. Get paid faster.</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/contact" className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center">
+              <Link href="/contact" prefetch={false} className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center">
                 Start Sourcing Free - No Credit Card Required <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
-              <Link href="/contact" className="border border-white text-white px-8 py-4 rounded-lg hover:bg-white hover:text-brand-dark transition-colors">
+              <Link href="/contact" prefetch={false} className="border border-white text-white px-8 py-4 rounded-lg hover:bg-white hover:text-brand-dark transition-colors">
                 Book a Live Platform Demo
               </Link>
             </div>
@@ -138,7 +138,7 @@ export default function TradingPlatform() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Your Competitors Are Already Sourcing Digitally. Don&apos;t Let Manual Procurement Cost You Another Deal.</h2>
           <div className="space-y-4">
-            <Link href="/contact" className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center text-lg">
+            <Link href="/contact" prefetch={false} className="bg-brand-blue text-white px-8 py-4 rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center text-lg">
               Request Your Free 30-Day Trial <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
             <div className="flex flex-col sm:flex-row gap-4 justify-center text-sm text-gray-300">

@@ -1,13 +1,22 @@
 'use client';
 
-import ReCAPTCHA from 'react-google-recaptcha';
+import dynamic from 'next/dynamic';
 import {
-  useRef,
   useState,
   type ChangeEvent,
   type FocusEvent,
   type FormEvent,
 } from 'react';
+
+const ContactRecaptcha = dynamic(() => import('../../components/ContactRecaptcha'), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="h-[78px] w-[304px] max-w-full rounded-lg border border-dashed border-gray-300 bg-gray-50"
+      aria-hidden="true"
+    />
+  ),
+});
 
 const initialFormData = {
   name: '',
@@ -78,7 +87,6 @@ function validateFormData(formData: FormState) {
 }
 
 export default function Contact() {
-  const recaptchaRef = useRef<ReCAPTCHA | null>(null);
   const [formData, setFormData] = useState<FormState>(initialFormData);
   const [touchedFields, setTouchedFields] = useState<
     Partial<Record<keyof FormState, boolean>>
@@ -89,6 +97,8 @@ export default function Contact() {
     message: '',
   });
   const [captchaError, setCaptchaError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fieldErrors = validateFormData(formData);
   const isFormValid = Object.keys(fieldErrors).length === 0;
@@ -137,9 +147,7 @@ export default function Contact() {
     setCaptchaError('');
 
     try {
-      const recaptchaToken = recaptchaRef.current?.getValue();
-
-      if (!recaptchaToken) {
+      if (!captchaToken) {
         setCaptchaError('Please complete the CAPTCHA.');
         throw new Error('Please complete the CAPTCHA.');
       }
@@ -151,7 +159,7 @@ export default function Contact() {
         },
         body: JSON.stringify({
           ...trimmedFormData,
-          recaptchaToken,
+          recaptchaToken: captchaToken,
         }),
       });
 
@@ -169,9 +177,11 @@ export default function Contact() {
       setTouchedFields({});
       setHasTriedSubmit(false);
       setCaptchaError('');
-      recaptchaRef.current?.reset();
+      setCaptchaToken(null);
+      setCaptchaResetKey((currentValue) => currentValue + 1);
     } catch (error) {
-      recaptchaRef.current?.reset();
+      setCaptchaToken(null);
+      setCaptchaResetKey((currentValue) => currentValue + 1);
 
       if (
         error instanceof Error &&
@@ -208,18 +218,19 @@ export default function Contact() {
             <div>
               <h2 className="text-3xl font-bold text-brand-dark mb-8">Get In Touch</h2>
               <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-                {submissionState.type !== 'idle' ? (
-                  <div
-                    aria-live="polite"
-                    className={`rounded-lg border px-4 py-3 text-sm ${
-                      submissionState.type === 'success'
-                        ? 'border-green-200 bg-green-50 text-green-800'
-                        : 'border-red-200 bg-red-50 text-red-800'
-                    }`}
-                  >
-                    {submissionState.message}
-                  </div>
-                ) : null}
+                <div className="min-h-14" aria-live="polite">
+                  {submissionState.type !== 'idle' ? (
+                    <div
+                      className={`rounded-lg border px-4 py-3 text-sm ${
+                        submissionState.type === 'success'
+                          ? 'border-green-200 bg-green-50 text-green-800'
+                          : 'border-red-200 bg-red-50 text-red-800'
+                      }`}
+                    >
+                      {submissionState.message}
+                    </div>
+                  ) : null}
+                </div>
                 <div>
                   <label
                     htmlFor="honeypot"
@@ -319,24 +330,35 @@ export default function Contact() {
                   ) : null}
                 </div>
                 <div>
-                  {recaptchaSiteKey ? (
-                    <ReCAPTCHA
-                      ref={recaptchaRef}
-                      sitekey={recaptchaSiteKey}
-                      onChange={() => setCaptchaError('')}
-                      onExpired={() => setCaptchaError('Please complete the CAPTCHA.')}
-                      onErrored={() =>
-                        setCaptchaError('CAPTCHA verification failed. Please try again.')
-                      }
-                    />
-                  ) : (
-                    <p className="text-sm text-red-600">
-                      CAPTCHA is not configured. Please contact the site owner.
-                    </p>
-                  )}
-                  {captchaError ? (
-                    <p className="mt-2 text-sm text-red-600">{captchaError}</p>
-                  ) : null}
+                  <div className="min-h-[104px]">
+                    {recaptchaSiteKey ? (
+                      <ContactRecaptcha
+                        widgetKey={captchaResetKey}
+                        siteKey={recaptchaSiteKey}
+                        onTokenChange={(token) => {
+                          setCaptchaToken(token);
+                          setCaptchaError('');
+                        }}
+                        onExpired={() => {
+                          setCaptchaToken(null);
+                          setCaptchaError('Please complete the CAPTCHA.');
+                        }}
+                        onErrored={() => {
+                          setCaptchaToken(null);
+                          setCaptchaError('CAPTCHA verification failed. Please try again.');
+                        }}
+                      />
+                    ) : (
+                      <p className="text-sm text-red-600">
+                        CAPTCHA is not configured. Please contact the site owner.
+                      </p>
+                    )}
+                    <div className="mt-2 min-h-5">
+                      {captchaError ? (
+                        <p className="text-sm text-red-600">{captchaError}</p>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
                 <button
                   type="submit"
