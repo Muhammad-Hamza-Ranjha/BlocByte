@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Syne, DM_Sans } from "next/font/google";
 import "./globals.css";
 import Navigation from "../components/Navigation";
@@ -33,11 +34,13 @@ export const metadata: Metadata = {
   description: "Premium engineering partner for founders, CTOs, and product teams. Web & app development, mobile, AI/ML, blockchain, GIS, staff augmentation.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
     children: React.ReactNode;
   }>) {
+  const nonce = (await headers()).get("x-nonce") ?? "";
+
   return (
     <html
       lang="en"
@@ -48,6 +51,7 @@ export default function RootLayout({
         <script
           suppressHydrationWarning
           id="blocbytes-theme-script"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: themeScript }}
         />
       </head>
