@@ -22,18 +22,6 @@ const securityHeaders = [
     value: "strict-origin-when-cross-origin",
   },
   {
-    key: "Content-Security-Policy",
-    value: [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
-      "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https:",
-      "frame-ancestors 'none'",
-    ].join("; "),
-  },
-  {
     key: "Permissions-Policy",
     value: [
       "camera=()",
