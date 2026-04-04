@@ -22,6 +22,22 @@ const securityHeaders = [
     value: "strict-origin-when-cross-origin",
   },
   {
+    key: "Cross-Origin-Embedder-Policy",
+    value: "require-corp",
+  },
+  {
+    key: "Cross-Origin-Opener-Policy",
+    value: "same-origin",
+  },
+  {
+    key: "Cross-Origin-Resource-Policy",
+    value: "same-origin",
+  },
+  {
+    key: "X-Permitted-Cross-Domain-Policies",
+    value: "none",
+  },
+  {
     key: "Permissions-Policy",
     value: [
       "camera=()",

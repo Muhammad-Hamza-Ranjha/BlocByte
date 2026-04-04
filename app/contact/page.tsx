@@ -217,7 +217,7 @@ export default function Contact() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div>
               <h2 className="text-3xl font-bold text-brand-dark mb-8">Get In Touch</h2>
-              <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+              <form method="post" onSubmit={handleSubmit} className="space-y-6" noValidate>
                 <div className="min-h-14" aria-live="polite">
                   {submissionState.type !== 'idle' ? (
                     <div
